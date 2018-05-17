@@ -103,6 +103,9 @@ class TingoCollection extends MongooseCollection {
     mapReduce(map, reduce, opts, cb) {
         this.collection.mapReduce(opts.map, opts.reduce, opts, cb);
     }
+
+    aggregate() {
+    }
 }
 
 function iter(i) {
