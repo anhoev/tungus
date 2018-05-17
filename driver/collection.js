@@ -95,13 +95,18 @@ class TingoCollection extends MongooseCollection {
     findAndModify() {
         return this._findAndModify200(...arguments);
     }
+
     getIndexes() {
         throw new Error('TingoDB does not support indexInformation()');
+    }
+
+    mapReduce(map, reduce, opts, cb) {
+        this.collection.mapReduce(opts.map, opts.reduce, opts, cb);
     }
 }
 
 function iter(i) {
-    TingoCollection.prototype[i] = function() {
+    TingoCollection.prototype[i] = function () {
         // If user force closed, queueing will hang forever. See #5664
         if (this.opts.$wasForceClosed) {
             return this.conn.db.collection(this.name)[i].apply(collection, args);
@@ -147,6 +152,7 @@ for (let i in Collection.prototype) {
         if (typeof Collection.prototype[i] !== 'function') {
             continue;
         }
+        if (i === 'mapReduce') continue;
     } catch (e) {
         continue;
     }
