@@ -41,7 +41,8 @@
     "mkdirp": "~0.5.x",
     "mongodb": "^3.0.4",
     "safe": "^0.4.6",
-    "tingodb": "~0.6.1"
+
+    "tingodb": "git+https://github.com/sergeyksv/tingodb.git"
   },
   "scripts": {
     "test": "mocha ./test/*.test.js"
