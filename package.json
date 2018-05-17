@@ -41,15 +41,14 @@
     "mkdirp": "~0.5.x",
     "mongodb": "^3.0.4",
     "safe": "^0.4.6",
-
-    "tingodb": "git+https://github.com/sergeyksv/tingodb.git"
+    "tingodb": "^0.6.1"
   },
   "scripts": {
     "test": "mocha ./test/*.test.js"
   },
   "devDependencies": {
     "mocha": "^5.0.4",
-    "mongoose": "^5.0.10",
+    "mongoose": "5.0.10",
     "tungus": "."
   }
 }
