@@ -100,11 +100,12 @@ class TingoCollection extends MongooseCollection {
         throw new Error('TingoDB does not support indexInformation()');
     }
 
-    mapReduce(map, reduce, opts, cb) {
-        this.collection.mapReduce(opts.map, opts.reduce, opts, cb);
+    mapReduce() {
+        this.collection.mapReduce(...arguments);
     }
 
     aggregate() {
+        throw new Error('TingoDB does not support aggregate');
     }
 }
 
