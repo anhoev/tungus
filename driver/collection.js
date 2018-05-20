@@ -107,35 +107,40 @@ class TingoCollection extends MongooseCollection {
     aggregate() {
         throw new Error('TingoDB does not support aggregate');
     }
+
+    update(...args) {
+        let cb = args.pop();
+        args.push(function (err, res) {
+            if (err) cb(err)
+            else cb(null, {value: res, ok: 1});
+        })
+        this.collection.update.apply(this.collection, args)
+    }
 }
 
 function iter(i) {
-    TingoCollection.prototype[i] = function () {
+    TingoCollection.prototype[i] = function (...args) {
         // If user force closed, queueing will hang forever. See #5664
         if (this.opts.$wasForceClosed) {
-            return this.conn.db.collection(this.name)[i].apply(collection, args);
+            return this.conn.db.collection(this.name)[i].apply(this.collection, args);
         }
         if (this.buffer) {
             this.addQueue(i, arguments);
             return;
         }
 
-        var collection = this.collection;
-        var args = arguments;
-        var _this = this;
-        var debug = _this.conn.base.options.debug;
+        let debug = this.conn.base.options.debug;
 
         if (debug) {
             if (typeof debug === 'function') {
-                debug.apply(_this,
-                    [_this.name, i].concat(utils.args(args, 0, args.length - 1)));
+                debug.apply(this, [this.name, i].concat(utils.args(args, 0, args.length - 1)));
             } else {
-                this.$print(_this.name, i, args);
+                this.$print(this.name, i, args);
             }
         }
 
         try {
-            return collection[i].apply(collection, args);
+            return this.collection[i](...args);
         } catch (error) {
             // Collection operation may throw because of max bson size, catch it here
             // See gh-3906
@@ -157,6 +162,7 @@ for (let i in Collection.prototype) {
             continue;
         }
         if (i === 'mapReduce') continue;
+        if (i === 'update') continue;
     } catch (e) {
         continue;
     }
