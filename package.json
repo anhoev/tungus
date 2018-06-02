@@ -41,7 +41,7 @@
     "mkdirp": "~0.5.x",
     "mongodb": "^3.0.4",
     "safe": "^0.4.6",
-    "tingodb": "github:anhoev/tingodb"
+    "tingodb": "github:anhoev/tingodb#reload_feature"
   },
   "scripts": {
     "test": "mocha ./test/*.test.js"
