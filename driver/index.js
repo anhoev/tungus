@@ -2,7 +2,6 @@
  * Module exports.
  */
 
-exports.Binary = require('./binary');
 exports.ObjectId = require('bson').ObjectId; // TODO: Make non native object id work, optionally
 
 // Dummy

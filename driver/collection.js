@@ -1,19 +1,8 @@
-/*!
- * Module dependencies.
- */
-
 const MongooseCollection = require('mongoose/lib/collection');
-const Collection = require('./tingodb').Collection;
+//const Collection = require('./tingodb').Collection;
 const utils = require('mongoose/lib/utils');
-
-/**
- * A [TingoDB](https://github.com/sergeyksv/tingodb) collection implementation.
- *
- * All methods methods from the [TingoDB](https://github.com/sergeyksv/tingodb) collection are copied and wrapped in queue management.
- *
- * @inherits Collection
- * @api private
- */
+const LinvoDB = require("linvodb3");
+const Collection = require('linvodb3/lib/model');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
@@ -35,40 +24,45 @@ class TingoCollection extends MongooseCollection {
             }
         };
 
-        if (!this.opts.capped.size) {
-            // non-capped
-            callback(null, this.conn.db.collection(this.name));
-            return this.collection;
+        this.collection = new LinvoDB(this.name, {}, {
+            filename: `${this.conn.uri.substr(10)}/${this.name}`
+        });
+        callback(null, this.collection);
+        return this.collection;
+
+    }
+
+    insert(doc, opt, cb) {
+        this.collection.insert(doc, cb);
+    }
+
+    find(query, fields, _cb) {
+        const cb = function (err, docs) {
+            _cb(err, {
+                toArray: cb2 => {
+                    cb2(null, docs);
+                }
+            })
         }
 
-        // capped
-        return this.conn.db.collection(this.name, (err, c) => {
-            if (err) return callback(err);
+        this.collection.find(query, cb);
+    }
 
-            // discover if this collection exists and if it is capped
-            this.conn.db.listCollections({name: this.name}).toArray((err, docs) => {
-                if (err) {
-                    return callback(err);
-                }
-                const doc = docs[0];
-                const exists = !!doc;
+    findAndModify(query, sort, update, opts, cb) {
+        const _cb = (err, res) => {
+            if (err) {
+                return cb(err)
+            }
+            cb(null, {value: res, ok: 1});
 
-                if (exists) {
-                    if (doc.options && doc.options.capped) {
-                        callback(null, c);
-                    } else {
-                        callback(new Error(`A non-capped collection exists with the name: ${this.name}
-                                 To use this collection as a capped collection, please first convert it.
-                                 http://www.mongodb.org/display/DOCS/Capped+Collections#CappedCollections-Convertingacollectiontocapped`));
-                    }
-                } else {
-                    // create
-                    const opts = utils.clone(this.opts.capped);
-                    opts.capped = true;
-                    this.conn.db.createCollection(this.name, opts, callback);
-                }
-            });
-        });
+        }
+        this.collection.update(query, update, opts, _cb);
+
+        const n = 5;
+    }
+
+    remove(query, opts, cb) {
+        this.collection.remove(query, Object.assign(opts, {multi: true}), cb);
     }
 
     onClose(force) {
@@ -92,30 +86,6 @@ class TingoCollection extends MongooseCollection {
         return format(arg);
     }
 
-    findAndModify() {
-        return this._findAndModify200(...arguments);
-    }
-
-    getIndexes() {
-        throw new Error('TingoDB does not support indexInformation()');
-    }
-
-    mapReduce() {
-        this.collection.mapReduce(...arguments);
-    }
-
-    aggregate() {
-        throw new Error('TingoDB does not support aggregate');
-    }
-
-    update(...args) {
-        let cb = args.pop();
-        args.push(function (err, res) {
-            if (err) cb(err)
-            else cb(null, {value: res, ok: 1});
-        })
-        this.collection.update.apply(this.collection, args)
-    }
 }
 
 function iter(i) {
@@ -140,7 +110,7 @@ function iter(i) {
         }
 
         try {
-            return this.collection[i](...args);
+            return this.collection[i](args[0], args[args.length - 1]);
         } catch (error) {
             // Collection operation may throw because of max bson size, catch it here
             // See gh-3906
@@ -161,8 +131,7 @@ for (let i in Collection.prototype) {
         if (typeof Collection.prototype[i] !== 'function') {
             continue;
         }
-        if (i === 'mapReduce') continue;
-        if (i === 'update') continue;
+        if (['insert', 'find', 'remove', 'findAndModify'].includes(i)) continue;
     } catch (e) {
         continue;
     }

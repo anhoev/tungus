@@ -37,11 +37,18 @@
     "node": ">= v0.8.x"
   },
   "dependencies": {
+    "level": "^4.0.0",
+    "leveldown": "^4.0.1",
+    "levelup": "^3.0.1",
+    "linvodb3": "^3.25.1",
     "lodash": "~4.17.x",
     "mkdirp": "~0.5.x",
     "mongodb": "^3.0.4",
+    "mongoose-autopopulate": "^0.7.0",
     "safe": "^0.4.6",
-    "tingodb": "github:anhoev/tingodb#reload_feature"
+    "tingodb": "github:anhoev/tingodb#reload_feature",
+    "underscore": "^1.9.1",
+    "xtend": "^4.0.1"
   },
   "scripts": {
     "test": "mocha ./test/*.test.js"
