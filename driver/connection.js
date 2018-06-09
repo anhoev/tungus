@@ -1,3 +1,4 @@
+const LinvoDB = require("linvodb3");
 const MongooseConnection = require('mongoose/lib/connection');
 
 const STATES = require('mongoose/lib/connectionstate');
@@ -41,7 +42,13 @@ TingoConnection.prototype._openWithoutPromise =
                 let dbPath = uri.substr(10);
                 mkdirp(dbPath, (err, made) => {
                     if (!err) {
-                        this.db = {}
+                        this.db = {
+                            collection: function (name) {
+                                return new LinvoDB(name, {}, {
+                                    filename: `${uri.substr(10)}/${name}`
+                                });
+                            }
+                        }
                     }
                     handleFunc(err);
                 });
