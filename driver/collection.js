@@ -99,6 +99,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     findAndModify(query, sort, update, opts, cb) {
+        normalize(query);
         normalize(update.$set);
         if (update.$set._id) delete update.$set._id;
         if (update.$setOnInsert) delete update.$setOnInsert;
