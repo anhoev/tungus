@@ -10,6 +10,11 @@ class TingoCollection extends MongooseCollection {
     constructor() {
         super(...arguments);
         this.collection = null;
+        if (this.conn.uri) {
+            this.collection = new LinvoDB(this.name, {}, {
+                filename: `${this.conn.uri.substr(10)}/${this.name}`
+            });
+        }
     }
 
     onOpen() {
@@ -24,16 +29,18 @@ class TingoCollection extends MongooseCollection {
                 super.onOpen();
             }
         };
-
-        this.collection = new LinvoDB(this.name, {}, {
-            filename: `${this.conn.uri.substr(10)}/${this.name}`
-        });
+        if (!this.collection) {
+            this.collection = new LinvoDB(this.name, {}, {
+                filename: `${this.conn.uri.substr(10)}/${this.name}`
+            });
+        }
         callback(null, this.collection);
         return this.collection;
 
     }
 
     insert(doc, opt, cb) {
+        normalize(doc)
         this.collection.insert(doc, cb);
     }
 
@@ -71,11 +78,15 @@ class TingoCollection extends MongooseCollection {
             _cb(err, !_.isEmpty(docs) ? docs[0] : null)
         }
 
-        this.collection.find(query, cb);
+        this.collection.findOne(query, _cb);
+    }
+
+    create() {
+        const a = 5;
     }
 
     find(query, fields, _cb) {
-        if (query._id instanceof ObjectId) query._id = query._id.toString();
+        normalize(query);
         const cb = function (err, docs) {
             _cb(err, {
                 toArray: cb2 => {
@@ -171,7 +182,7 @@ for (let i in Collection.prototype) {
         if (typeof Collection.prototype[i] !== 'function') {
             continue;
         }
-        if (['insert', 'find', 'findOne', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
+        if (['insert', 'find', 'create', 'findOne', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
     } catch (e) {
         continue;
     }
@@ -247,9 +258,10 @@ function format(obj, sub) {
 }
 
 const normalize = function (obj) {
-    var self = this;
     _.each(obj, function (v, k) {
-        if (_.isObject(v)) {
+        if (v instanceof ObjectId) {
+            obj[k] = v.toString();
+        } else if (_.isObject(v)) {
             if (v.isMongooseArray) {
                 obj[k] = obj[k].toObject();
             } else {
