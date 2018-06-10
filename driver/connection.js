@@ -42,11 +42,7 @@ TingoConnection.prototype._openWithoutPromise =
                 let dbPath = uri.substr(10);
                 mkdirp(dbPath, (err, made) => {
                     if (!err) {
-                        this.db = {
-                            collection: function (name) {
-                                return new Collection(name);
-                            }
-                        }
+                        this.db = {}
                     }
                     handleFunc(err);
                 });

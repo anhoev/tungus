@@ -43,7 +43,7 @@
     "linvodb3": "^3.25.1",
     "lodash": "~4.17.x",
     "mkdirp": "~0.5.x",
-    "mongodb": "^3.0.4",
+    "mongodb": "^3.0.10",
     "mongoose-autopopulate": "^0.7.0",
     "safe": "^0.4.6",
     "tingodb": "github:anhoev/tingodb#reload_feature",

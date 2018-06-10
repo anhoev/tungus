@@ -13,7 +13,6 @@ class TingoCollection extends MongooseCollection {
     onOpen() {
         // always get a new collection in case the user changed host:port
         // of parent db instance when re-opening the connection.
-
         const callback = (err, collection) => {
             if (err) {
                 // likely a strict mode error
@@ -36,6 +35,34 @@ class TingoCollection extends MongooseCollection {
         this.collection.insert(doc, cb);
     }
 
+    drop(cb) {
+        cb();
+    }
+
+    ensureIndex(obj, options, cb) {
+        const fieldName = _.map(obj, (v, k) => k)[0];
+        try {
+            this.collection.ensureIndex({fieldName}, cb);
+        } catch (e) {
+            console.log(this.name);
+            console.warn(e);
+        }
+    }
+
+    createIndex(obj, options) {
+        return new Promise((resolve, reject) => {
+            const fieldName = _.map(obj, (v, k) => k)[0];
+            try {
+                this.collection.ensureIndex({fieldName}, () => {
+                    resolve();
+                });
+            } catch (e) {
+                console.log(this.name);
+                console.warn(e);
+            }
+        })
+    }
+
     find(query, fields, _cb) {
         const cb = function (err, docs) {
             _cb(err, {
@@ -49,6 +76,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     findAndModify(query, sort, update, opts, cb) {
+        if (update.$setOnInsert) delete update.$setOnInsert;
         const _cb = (err, res) => {
             if (err) {
                 return cb(err)
@@ -57,8 +85,6 @@ class TingoCollection extends MongooseCollection {
 
         }
         this.collection.update(query, update, opts, _cb);
-
-        const n = 5;
     }
 
     remove(query, opts, cb) {
@@ -131,7 +157,7 @@ for (let i in Collection.prototype) {
         if (typeof Collection.prototype[i] !== 'function') {
             continue;
         }
-        if (['insert', 'find', 'remove', 'findAndModify'].includes(i)) continue;
+        if (['insert', 'find', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
     } catch (e) {
         continue;
     }
@@ -205,6 +231,30 @@ function format(obj, sub) {
         .replace(/\n/g, '')
         .replace(/\s{2,}/g, ' ');
 }
+
+const _unwrapTypes = function (obj) {
+    var self = this;
+    _.each(obj, function (v, k) {
+        if (_.isObject(v)) {
+            switch (v.$wrap) {
+                case "$date":
+                    obj[k] = new Date(v.v);
+                    break;
+                case "$oid":
+                    var oid = new self._tdb.ObjectID(v.v);
+                    obj[k] = oid;
+                    break;
+                case "$bin":
+                    var bin = new self._tdb.Binary(new Buffer(v.v, 'base64'));
+                    obj[k] = bin;
+                    break;
+                default:
+                    if (!obj.__parentArray) self._unwrapTypes(v);
+            }
+        }
+    });
+    return obj;
+};
 
 /*!
  * Module exports.
