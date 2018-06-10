@@ -3,6 +3,7 @@ const MongooseCollection = require('mongoose/lib/collection');
 const utils = require('mongoose/lib/utils');
 const LinvoDB = require("linvodb3");
 const Collection = require('linvodb3/lib/model');
+const _ = require('lodash');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
@@ -76,6 +77,8 @@ class TingoCollection extends MongooseCollection {
     }
 
     findAndModify(query, sort, update, opts, cb) {
+        normalize(update.$set);
+        if (update.$set._id) delete update.$set._id;
         if (update.$setOnInsert) delete update.$setOnInsert;
         const _cb = (err, res) => {
             if (err) {
@@ -232,24 +235,14 @@ function format(obj, sub) {
         .replace(/\s{2,}/g, ' ');
 }
 
-const _unwrapTypes = function (obj) {
+const normalize = function (obj) {
     var self = this;
     _.each(obj, function (v, k) {
         if (_.isObject(v)) {
-            switch (v.$wrap) {
-                case "$date":
-                    obj[k] = new Date(v.v);
-                    break;
-                case "$oid":
-                    var oid = new self._tdb.ObjectID(v.v);
-                    obj[k] = oid;
-                    break;
-                case "$bin":
-                    var bin = new self._tdb.Binary(new Buffer(v.v, 'base64'));
-                    obj[k] = bin;
-                    break;
-                default:
-                    if (!obj.__parentArray) self._unwrapTypes(v);
+            if (v.isMongooseArray) {
+                obj[k] = obj[k].toObject();
+            } else {
+                normalize(v);
             }
         }
     });

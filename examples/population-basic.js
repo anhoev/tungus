@@ -20,7 +20,28 @@ const gameSchema = Schema({
     name: String,
     developer: String,
     released: Date,
-    console1: {type: Schema.Types.ObjectId, ref: 'Console', autopopulate: true}
+    test: {
+        type: [{
+            name: String,
+            color: {type: String, form: {type: 'color'}},
+            bigButton: Boolean,
+            bigButtonVertical: Boolean,
+            item: {
+                type: [{
+                    text: String,
+                    mode: {type: String, default: 'ARTIKEL'},
+                    console1: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: 'Console',
+                        autopopulate: true,
+                        label: 'Speise'
+                    },
+                    color: {type: String, form: {type: 'color'}}
+                }],
+            }
+        }]
+    },
+    console1: [{type: Schema.Types.ObjectId, ref: 'Console', autopopulate: true}]
 });
 
 gameSchema.plugin(autopopulate);
@@ -54,15 +75,21 @@ async function example() {
             name: 'Legend of Zelda: Ocarina of Time',
             developer: 'Nintendo',
             released: new Date('November 21, 1998'),
-            console1: console._id
+            console1: [console._id, console._id],
+            test: [{
+                name : '1',
+                item: [{
+                    console1: console
+                }]
+            }]
         });
 
-        const count = await Game.count({});
+        //const count = await Game.count({});
 
         const game = await Game.findOne({});
-        await Game.findByIdAndUpdate(game._id, {$set: {name: 'Test'}});
+        await Game.findByIdAndUpdate(game._id, game.toObject());
 
-        const games = await Game.find({console: {$exists: false}}).lean();
+        const game1 = await Game.findOne({console: {$exists: false}});
         const a = 5;
     } catch (e) {
         console.warn(e);
