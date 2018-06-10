@@ -4,6 +4,7 @@ const utils = require('mongoose/lib/utils');
 const LinvoDB = require("linvodb3");
 const Collection = require('linvodb3/lib/model');
 const _ = require('lodash');
+const ObjectId = require('bson').ObjectId;
 
 class TingoCollection extends MongooseCollection {
     constructor() {
@@ -64,7 +65,13 @@ class TingoCollection extends MongooseCollection {
         })
     }
 
+    findOne(query, fields, _cb) {
+        query._id = query._id.toString();
+        this.collection.find(query, _cb);
+    }
+
     find(query, fields, _cb) {
+        query._id = query._id.toString();
         const cb = function (err, docs) {
             _cb(err, {
                 toArray: cb2 => {
@@ -160,7 +167,7 @@ for (let i in Collection.prototype) {
         if (typeof Collection.prototype[i] !== 'function') {
             continue;
         }
-        if (['insert', 'find', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
+        if (['insert', 'find', 'findOne', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
     } catch (e) {
         continue;
     }
