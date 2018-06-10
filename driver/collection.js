@@ -67,7 +67,11 @@ class TingoCollection extends MongooseCollection {
 
     findOne(query, fields, _cb) {
         if (query._id instanceof ObjectId) query._id = query._id.toString();
-        this.collection.find(query, _cb);
+        const cb = function (err, docs) {
+            _cb(err, !_.isEmpty(docs) ? docs[0] : null)
+        }
+
+        this.collection.find(query, cb);
     }
 
     find(query, fields, _cb) {
