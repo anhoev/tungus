@@ -66,12 +66,12 @@ class TingoCollection extends MongooseCollection {
     }
 
     findOne(query, fields, _cb) {
-        query._id = query._id.toString();
+        if (query._id instanceof ObjectId) query._id = query._id.toString();
         this.collection.find(query, _cb);
     }
 
     find(query, fields, _cb) {
-        query._id = query._id.toString();
+        if (query._id instanceof ObjectId) query._id = query._id.toString();
         const cb = function (err, docs) {
             _cb(err, {
                 toArray: cb2 => {
