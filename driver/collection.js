@@ -98,9 +98,9 @@ class TingoCollection extends MongooseCollection {
         this.collection.find(query, cb);
     }
 
-    findAndModify(query, sort, update, opts, cb) {
+    findAndModify(query, sort, update, opts = {}, cb) {
         normalize(query);
-        normalize(update.$set);
+        normalize(update);
         if (update.$set._id) delete update.$set._id;
         if (update.$setOnInsert) delete update.$setOnInsert;
         const _cb = (err, res) => {
@@ -110,6 +110,23 @@ class TingoCollection extends MongooseCollection {
             cb(null, {value: res, ok: 1});
 
         }
+        this.collection.update(query, update, opts, _cb);
+    }
+
+    update(query, update, opts = {}, cb) {
+        normalize(query);
+        normalize(update);
+        if (update.$set._id) delete update.$set._id;
+        if (update.$setOnInsert) delete update.$setOnInsert;
+
+        const _cb = (err, res) => {
+            if (err) {
+                return cb(err)
+            }
+            cb(null, {value: res, ok: 1});
+
+        }
+
         this.collection.update(query, update, opts, _cb);
     }
 
@@ -183,7 +200,7 @@ for (let i in Collection.prototype) {
         if (typeof Collection.prototype[i] !== 'function') {
             continue;
         }
-        if (['insert', 'find', 'create', 'findOne', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
+        if (['insert', 'update', 'find', 'create', 'findOne', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
     } catch (e) {
         continue;
     }
