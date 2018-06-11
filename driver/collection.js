@@ -85,12 +85,16 @@ class TingoCollection extends MongooseCollection {
             })
         }
 
-        Promise.all(keys.map(_id => this.dataDb.get(_id)))
-            .then(docs => {
-                docs = docs.map(doc => document.deserialize(doc));
-                cb(null, docs)
-            })
-            .catch(err => cb(err))
+        if (!_.isEmpty(keys)) {
+            Promise.all(keys.map(_id => this.dataDb.get(_id)))
+                .then(docs => {
+                    docs = docs.map(doc => document.deserialize(doc));
+                    cb(null, docs)
+                })
+                .catch(err => cb(err))
+        } else {
+            cb(null, null);
+        }
 
 
     }
