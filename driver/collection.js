@@ -100,7 +100,9 @@ class TingoCollection extends MongooseCollection {
             _docs.toArray((err, docs) => {
                 const batch = this.dataDb.batch();
                 for (const doc of docs) {
-                    batch.put(doc._id, document.serialize(_.assign(doc, update.$set)));
+                    let doc2 = _.assign(doc, update.$set);
+                    batch.put(doc._id, document.serialize(doc2));
+                    this.idx[this.idx.indexOf(doc._id)] = this.getIndex(doc2);
                 }
                 batch.write(() => {
                     cb(null, {value: docs, ok: 1})
