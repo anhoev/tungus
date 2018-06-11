@@ -1,47 +1,48 @@
 const MongooseCollection = require('mongoose/lib/collection');
-//const Collection = require('./tingodb').Collection;
-const utils = require('mongoose/lib/utils');
-const LinvoDB = require("linvodb3");
-const Collection = require('linvodb3/lib/model');
 const _ = require('lodash');
 const ObjectId = require('bson').ObjectId;
+
+
+const levelup = require('levelup');
+const leveldown = require('leveldown');
+const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector');
+const utils = require('minimongo/lib/utils');
+const document = require('linvodb3/lib/document')
 
 class TingoCollection extends MongooseCollection {
     constructor() {
         super(...arguments);
-        this.collection = null;
-        if (this.conn.uri) {
-            this.collection = new LinvoDB(this.name, {}, {
-                filename: `${this.conn.uri.substr(10)}/${this.name}`
-            });
-        }
+        if (this.conn.uri) this.init();
+    }
+
+    init() {
+        this.dataDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}`));
+        this.indexDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}_index`));
+        this.idx = [];
+        this.indexes = [];
+        this.indexDb.createReadStream()
+            .on('data', data => {
+                this.idx.push(document.deserialize(data.value));
+            })
+            .on('end', function () {
+                console.log('Stream ended')
+            })
     }
 
     onOpen() {
-        // always get a new collection in case the user changed host:port
-        // of parent db instance when re-opening the connection.
-        const callback = (err, collection) => {
-            if (err) {
-                // likely a strict mode error
-                this.conn.emit('error', err);
-            } else {
-                this.collection = collection;
-                super.onOpen();
-            }
-        };
-        if (!this.collection) {
-            this.collection = new LinvoDB(this.name, {}, {
-                filename: `${this.conn.uri.substr(10)}/${this.name}`
-            });
-        }
-        callback(null, this.collection);
-        return this.collection;
+        if (!this.dataDb) this.init();
+        super.onOpen();
+    }
 
+    getIndex(doc) {
+        return _.pick(doc, this.indexes);
     }
 
     insert(doc, opt, cb) {
-        normalize(doc)
-        this.collection.insert(doc, cb);
+        normalize(doc);
+        this.idx.push(doc);
+        this.indexDb.put(doc._id, document.serialize(this.getIndex(doc))).then();
+        this.dataDb.put(doc._id, document.serialize(doc), cb);
     }
 
     drop(cb) {
@@ -50,43 +51,28 @@ class TingoCollection extends MongooseCollection {
 
     ensureIndex(obj, options, cb) {
         const fieldName = _.map(obj, (v, k) => k)[0];
-        try {
-            this.collection.ensureIndex({fieldName}, cb);
-        } catch (e) {
-            console.log(this.name);
-            console.warn(e);
-        }
+        this.indexes.push(fieldName);
     }
 
     createIndex(obj, options) {
-        return new Promise((resolve, reject) => {
-            const fieldName = _.map(obj, (v, k) => k)[0];
-            try {
-                this.collection.ensureIndex({fieldName}, () => {
-                    resolve();
-                });
-            } catch (e) {
-                console.log(this.name);
-                console.warn(e);
-            }
-        })
+        const fieldName = _.map(obj, (v, k) => k)[0];
+        this.indexes.push(fieldName);
     }
 
-    findOne(query, fields, _cb) {
-        if (query._id instanceof ObjectId) query._id = query._id.toString();
-        const cb = function (err, docs) {
-            _cb(err, !_.isEmpty(docs) ? docs[0] : null)
-        }
-
-        this.collection.findOne(query, _cb);
-    }
-
-    create() {
-        const a = 5;
-    }
-
-    find(query, fields, _cb) {
+    findOne(query, opts, _cb) {
+        if (opts) delete opts.fields;
         normalize(query);
+        let [key] = utils.processFind(this.idx, opts, {}).map(doc => doc._id);
+        if (key) this.dataDb.get(key, (err, doc) => {
+            _cb(err, document.deserialize(doc));
+        });
+    }
+
+    find(query, opts, _cb) {
+        if (opts) delete opts.fields;
+        normalize(query);
+        let keys = utils.processFind(this.idx, query, opts).map(doc => doc._id);
+        //let docs = [];
         const cb = function (err, docs) {
             _cb(err, {
                 toArray: cb2 => {
@@ -95,185 +81,69 @@ class TingoCollection extends MongooseCollection {
             })
         }
 
-        this.collection.find(query, cb);
+        Promise.all(keys.map(_id => this.dataDb.get(_id)))
+            .then(docs => {
+                docs = docs.map(doc => document.deserialize(doc));
+                cb(null, docs)
+            })
+            .catch(err => cb(err))
+
+
     }
 
     findAndModify(query, sort, update, opts = {}, cb) {
-        normalize(query);
         normalize(update);
         if (update.$set._id) delete update.$set._id;
         if (update.$setOnInsert) delete update.$setOnInsert;
-        const _cb = (err, res) => {
-            if (err) {
-                return cb(err)
-            }
-            cb(null, {value: res, ok: 1});
 
-        }
-        this.collection.update(query, update, opts, _cb);
+        this.find(query, opts, (err, _docs) => {
+            _docs.toArray((err, docs) => {
+                const batch = this.dataDb.batch();
+                for (const doc of docs) {
+                    batch.put(doc._id, document.serialize(_.assign(doc, update.$set)));
+                }
+                batch.write(() => {
+                    cb(null, {value: docs, ok: 1})
+                });
+            });
+        })
     }
 
     update(query, update, opts = {}, cb) {
-        normalize(query);
-        normalize(update);
-        if (update.$set._id) delete update.$set._id;
-        if (update.$setOnInsert) delete update.$setOnInsert;
-
-        const _cb = (err, res) => {
-            if (err) {
-                return cb(err)
-            }
-            cb(null, {value: res, ok: 1});
-
-        }
-
-        this.collection.update(query, update, opts, _cb);
+        this.findAndModify(query, {}, update, null, cb);
     }
 
     remove(query, opts, cb) {
-        this.collection.remove(query, Object.assign(opts, {multi: true}), cb);
+        normalize(query);
+        let keys = utils.processFind(this.idx, query, {}).map(doc => doc._id);
+
+        _.remove(this.idx, i => keys.includes(i._id));
+
+        if (keys.length > 0) {
+            const batchIndex = this.indexDb.batch();
+            for (const key of keys) {
+                if (key) batchIndex.del(key);
+            }
+            batchIndex.write(() => null);
+
+            const batch = this.dataDb.batch();
+            for (const key of keys) {
+                if (key) batch.del(key);
+            }
+            batch.write(() => {
+                cb(null, keys.length);
+            });
+        } else {
+            cb(null, 0);
+        }
     }
 
     onClose(force) {
         super.onClose(force);
     }
 
-    $print(name, i, args) {
-        const moduleName = '\x1B[0;36mMongoose:\x1B[0m ';
-        const functionCall = [name, i].join('.');
-        const _args = [];
-        for (let j = args.length - 1; j >= 0; --j) {
-            if (this.$format(args[j]) || _args.length) _args.unshift(this.$format(args[j]));
-        }
-        const params = `(${_args.join(', ')})`;
-        console.error(moduleName + functionCall + params);
-    }
-
-    $format(arg) {
-        const type = typeof arg;
-        if (type === 'function' || type === 'undefined') return '';
-        return format(arg);
-    }
-
 }
 
-function iter(i) {
-    TingoCollection.prototype[i] = function (...args) {
-        // If user force closed, queueing will hang forever. See #5664
-        if (this.opts.$wasForceClosed) {
-            return this.conn.db.collection(this.name)[i].apply(this.collection, args);
-        }
-        if (this.buffer) {
-            this.addQueue(i, arguments);
-            return;
-        }
-
-        let debug = this.conn.base.options.debug;
-
-        if (debug) {
-            if (typeof debug === 'function') {
-                debug.apply(this, [this.name, i].concat(utils.args(args, 0, args.length - 1)));
-            } else {
-                this.$print(this.name, i, args);
-            }
-        }
-
-        try {
-            return this.collection[i](args[0], args[args.length - 1]);
-        } catch (error) {
-            // Collection operation may throw because of max bson size, catch it here
-            // See gh-3906
-            if (args.length > 0 &&
-                typeof args[args.length - 1] === 'function') {
-                args[args.length - 1](error);
-            } else {
-                throw error;
-            }
-        }
-    };
-}
-
-for (let i in Collection.prototype) {
-    // Janky hack to work around gh-3005 until we can get rid of the mongoose
-    // collection abstraction
-    try {
-        if (typeof Collection.prototype[i] !== 'function') {
-            continue;
-        }
-        if (['insert', 'update', 'find', 'create', 'findOne', 'remove', 'findAndModify', 'ensureIndex', 'createIndex'].includes(i)) continue;
-    } catch (e) {
-        continue;
-    }
-
-    iter(i);
-}
-
-function map(o) {
-    return format(o, true);
-}
-
-function formatObjectId(x, key) {
-    const representation = `ObjectId("${x[key].toHexString()}")`;
-    x[key] = {inspect: () => representation};
-}
-
-function formatDate(x, key) {
-    const representation = `new Date("${x[key].toUTCString()}")`;
-    x[key] = {inspect: () => representation};
-}
-
-function format(obj, sub) {
-    if (obj && typeof obj.toBSON === 'function') {
-        obj = obj.toBSON();
-    }
-    let x = utils.clone(obj, {retainKeyOrder: 1, transform: false});
-    let representation;
-
-    if (x !== null) {
-        if (x.constructor.name === 'Binary') {
-            x = `BinData(${x.sub_type}, "${x.toString('base64')}")`;
-        } else if (x.constructor.name === 'ObjectID') {
-            representation = `ObjectId("${x.toHexString()}")`;
-            x = {
-                inspect: function () {
-                    return representation;
-                }
-            };
-        } else if (x.constructor.name === 'Date') {
-            representation = `new Date("${x.toUTCString()}")`;
-            x = {inspect: () => representation};
-        } else if (x.constructor.name === 'Object') {
-            const keys = Object.keys(x);
-            const numKeys = keys.length;
-            let key;
-            for (let i = 0; i < numKeys; ++i) {
-                key = keys[i];
-                if (x[key]) {
-                    if (typeof x[key].toBSON === 'function') {
-                        x[key] = x[key].toBSON();
-                    }
-                    if (x[key].constructor.name === 'Binary') {
-                        x[key] = `BinData(${x[key].sub_type}, "${x[key].buffer.toString('base64')}")`;
-                    } else if (x[key].constructor.name === 'Object') {
-                        x[key] = format(x[key], true);
-                    } else if (x[key].constructor.name === 'ObjectID') {
-                        formatObjectId(x, key);
-                    } else if (x[key].constructor.name === 'Date') {
-                        formatDate(x, key);
-                    } else if (Array.isArray(x[key])) {
-                        x[key] = x[key].map(map);
-                    }
-                }
-            }
-        }
-        if (sub) return x;
-    }
-
-    return require('util')
-        .inspect(x, false, 10, true)
-        .replace(/\n/g, '')
-        .replace(/\s{2,}/g, ' ');
-}
 
 const normalize = function (obj) {
     _.each(obj, function (v, k) {
