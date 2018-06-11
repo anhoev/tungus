@@ -5,8 +5,7 @@ const sift = require('sift');
 
 const levelup = require('levelup');
 const leveldown = require('leveldown');
-const {compileSort, compileDocumentSelector} = require('./selector');
-const utils = require('./utils');
+const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector');
 const document = require('linvodb3/lib/document')
 
 class TingoCollection extends MongooseCollection {
