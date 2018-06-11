@@ -11,7 +11,6 @@ const document = require('linvodb3/lib/document')
 class TingoCollection extends MongooseCollection {
     constructor() {
         super(...arguments);
-        this.queue = [];
         if (this.conn.uri) this.init();
     }
 
@@ -25,14 +24,12 @@ class TingoCollection extends MongooseCollection {
                 this.idx.push(document.deserialize(data.value));
             })
             .on('end', () => {
-                this.loaded = true;
-                this.queue.forEach(fn => fn());
+                super.onOpen();
             })
     }
 
     onOpen() {
         if (!this.dataDb) this.init();
-        super.onOpen();
     }
 
     getIndex(doc) {
@@ -61,56 +58,40 @@ class TingoCollection extends MongooseCollection {
     }
 
     findOne(query, opts, _cb) {
-        const _findOne = () => {
-            if (opts) delete opts.fields;
-            normalize(query);
-            let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
-            if (key) {
-                this.dataDb.get(key, (err, doc) => {
-                    _cb(err, document.deserialize(doc));
-                });
-            } else {
-                _cb(null, null);
-            }
-        }
-
-        if (this.loaded) {
-            _findOne();
+        if (opts) delete opts.fields;
+        normalize(query);
+        let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
+        if (key) {
+            this.dataDb.get(key, (err, doc) => {
+                _cb(err, document.deserialize(doc));
+            });
         } else {
-            this.queue.push(_findOne);
+            _cb(null, null);
         }
     }
 
     find(query, opts, _cb) {
-        const _find = () => {
-            if (opts) delete opts.fields;
-            normalize(query);
-            let keys = processFind(this.idx, query, opts).map(doc => doc._id);
-            //let docs = [];
-            const cb = function (err, docs) {
-                _cb(err, {
-                    toArray: cb2 => {
-                        cb2(null, docs);
-                    }
-                })
-            }
-
-            if (!_.isEmpty(keys)) {
-                Promise.all(keys.map(_id => this.dataDb.get(_id)))
-                    .then(docs => {
-                        docs = docs.map(doc => document.deserialize(doc));
-                        cb(null, docs)
-                    })
-                    .catch(err => cb(err))
-            } else {
-                cb(null, []);
-            }
+        if (opts) delete opts.fields;
+        normalize(query);
+        let keys = processFind(this.idx, query, opts).map(doc => doc._id);
+        //let docs = [];
+        const cb = function (err, docs) {
+            _cb(err, {
+                toArray: cb2 => {
+                    cb2(null, docs);
+                }
+            })
         }
 
-        if (this.loaded) {
-            _find();
+        if (!_.isEmpty(keys)) {
+            Promise.all(keys.map(_id => this.dataDb.get(_id)))
+                .then(docs => {
+                    docs = docs.map(doc => document.deserialize(doc));
+                    cb(null, docs)
+                })
+                .catch(err => cb(err))
         } else {
-            this.queue.push(_find);
+            cb(null, []);
         }
     }
 
