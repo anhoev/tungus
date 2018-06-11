@@ -63,9 +63,13 @@ class TingoCollection extends MongooseCollection {
         if (opts) delete opts.fields;
         normalize(query);
         let [key] = utils.processFind(this.idx, opts, {}).map(doc => doc._id);
-        if (key) this.dataDb.get(key, (err, doc) => {
-            _cb(err, document.deserialize(doc));
-        });
+        if (key) {
+            this.dataDb.get(key, (err, doc) => {
+                _cb(err, document.deserialize(doc));
+            });
+        } else {
+            _cb(null, null);
+        }
     }
 
     find(query, opts, _cb) {
