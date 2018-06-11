@@ -35,7 +35,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     getIndex(doc) {
-        return _.pick(doc, this.indexes);
+        return _.pick(doc, this.indexes.concat(['_id']));
     }
 
     insert(doc, opt, cb) {
@@ -93,7 +93,7 @@ class TingoCollection extends MongooseCollection {
                 })
                 .catch(err => cb(err))
         } else {
-            cb(null, null);
+            cb(null, []);
         }
 
 
