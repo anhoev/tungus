@@ -1,12 +1,12 @@
 const MongooseCollection = require('mongoose/lib/collection');
 const _ = require('lodash');
 const ObjectId = require('bson').ObjectId;
-
+const sift = require('sift');
 
 const levelup = require('levelup');
 const leveldown = require('leveldown');
-const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector');
-const utils = require('minimongo/lib/utils');
+const {compileSort, compileDocumentSelector} = require('./selector');
+const utils = require('./utils');
 const document = require('linvodb3/lib/document')
 
 class TingoCollection extends MongooseCollection {
@@ -25,7 +25,6 @@ class TingoCollection extends MongooseCollection {
                 this.idx.push(document.deserialize(data.value));
             })
             .on('end', function () {
-                console.log('Stream ended')
             })
     }
 
@@ -62,7 +61,7 @@ class TingoCollection extends MongooseCollection {
     findOne(query, opts, _cb) {
         if (opts) delete opts.fields;
         normalize(query);
-        let [key] = utils.processFind(this.idx, opts, {}).map(doc => doc._id);
+        let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
         if (key) {
             this.dataDb.get(key, (err, doc) => {
                 _cb(err, document.deserialize(doc));
@@ -75,7 +74,7 @@ class TingoCollection extends MongooseCollection {
     find(query, opts, _cb) {
         if (opts) delete opts.fields;
         normalize(query);
-        let keys = utils.processFind(this.idx, query, opts).map(doc => doc._id);
+        let keys = processFind(this.idx, query, opts).map(doc => doc._id);
         //let docs = [];
         const cb = function (err, docs) {
             _cb(err, {
@@ -125,7 +124,7 @@ class TingoCollection extends MongooseCollection {
 
     remove(query, opts, cb) {
         normalize(query);
-        let keys = utils.processFind(this.idx, query, {}).map(doc => doc._id);
+        let keys = processFind(this.idx, query, opts).map(doc => doc._id);
 
         _.remove(this.idx, i => keys.includes(i._id));
 
@@ -154,6 +153,13 @@ class TingoCollection extends MongooseCollection {
 
 }
 
+function processFind(items, query, opts) {
+    let filtered = sift(query, items);
+    if (opts && opts.sort) filtered.sort(compileSort(options.sort))
+    if (opts && opts.skip) filtered = _.slice(filtered, options.skip)
+    if (opts && opts.limit) filtered = _.take(filtered, options.limit)
+    return filtered;
+}
 
 const normalize = function (obj) {
     _.each(obj, function (v, k) {

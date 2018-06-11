@@ -46,6 +46,7 @@
     "mkdirp": "~0.5.x",
     "mongodb": "^3.0.10",
     "safe": "^0.4.6",
+    "sift": "^5.1.0",
     "tingodb": "github:anhoev/tingodb#reload_feature"
   },
   "scripts": {
