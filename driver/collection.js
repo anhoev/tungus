@@ -154,9 +154,9 @@ class TingoCollection extends MongooseCollection {
 
 function processFind(items, query, opts) {
     let filtered = sift(query, items);
-    if (opts && opts.sort) filtered.sort(compileSort(options.sort))
-    if (opts && opts.skip) filtered = _.slice(filtered, options.skip)
-    if (opts && opts.limit) filtered = _.take(filtered, options.limit)
+    if (opts && opts.sort) filtered.sort(compileSort(opts.sort))
+    if (opts && opts.skip) filtered = _.slice(filtered, opts.skip)
+    if (opts && opts.limit) filtered = _.take(filtered, opts.limit)
     return filtered;
 }
 
