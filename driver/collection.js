@@ -9,6 +9,7 @@ const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector')
 const document = require('linvodb3/lib/document')
 const multilevel = require('multilevel');
 const net = require('net');
+const path = require('path');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
