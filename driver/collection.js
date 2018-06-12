@@ -19,21 +19,21 @@ class TingoCollection extends MongooseCollection {
         if (this.conn.uri) this.init();
     }
 
-    init() {
-        const afterInit = () => {
-            this.idx = [];
-            this.indexes = [];
-            this.indexDb.createReadStream()
-                .on('data', data => {
-                    this.idx.push(document.deserialize(data.value));
-                })
-                .on('end', () => {
-                    super.onOpen();
-                    this.loaded = true;
-                    this.queue2.forEach(fn => fn());
-                })
-        }
+    afterInit() {
+        this.idx = [];
+        this.indexes = [];
+        this.indexDb.createReadStream()
+            .on('data', data => {
+                this.idx.push(document.deserialize(data.value));
+            })
+            .on('end', () => {
+                this.loaded = true;
+                this.queue2.forEach(fn => fn());
+                super.onOpen();
+            })
+    }
 
+    init() {
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
         const createSockPath = dir => {
             return process.platform === 'win32' ?
@@ -44,7 +44,7 @@ class TingoCollection extends MongooseCollection {
         const _init = () => {
             this.dataDb = levelup(leveldown(`${base}`), {compression: false});
             this.indexDb = levelup(leveldown(`${base}_index`), {compression: false});
-            afterInit();
+            this.afterInit();
         }
 
         if (this.conn.uri.split('//')[0].includes('server')) {
@@ -59,13 +59,13 @@ class TingoCollection extends MongooseCollection {
             const con = net.connect(createSockPath(`${base}_index`));
             con.pipe(this.indexDb.createRpcStream()).pipe(con);
 
-            con.on('connect', function () {
+            con.on('connect', () => {
                 this.dataDb = multilevel.client();
                 const con2 = net.connect(createSockPath(base));
                 con2.pipe(this.dataDb.createRpcStream()).pipe(con2);
 
-                con2.on('connect', function () {
-                    afterInit();
+                con2.on('connect', () => {
+                    this.afterInit();
                 })
             });
         } else {

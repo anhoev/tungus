@@ -6,7 +6,7 @@ const Schema = mongoose.Schema;
 const _ = require('lodash');
 const autopopulate = require('mongoose-autopopulate');
 
-mongoose.connect('tingodb_server://test', {useMongoClient: false}, function (err) {
+mongoose.connect('tingodb_client://test', {useMongoClient: false}, function (err) {
     // if we failed to connect, abort
     if (err) throw err;
 
@@ -51,15 +51,16 @@ example();
 
 async function example() {
     try {
-        await Console.findOne();
+        const console1 = await Console.findOne();
+        console.log(console1);
         //await Console.remove({});
-        const name = 'test';
+        /*const name = 'test';
         await Console.create({name, manufacturer: name + '2', vid: 1});
         console.time('findOne');
         const console1 = await Console.findOne({});
         console.timeEnd('findOne');
         console1.vid = 10;
-        await Console.findByIdAndUpdate(console1._id, console1);
+        await Console.findByIdAndUpdate(console1._id, console1);*/
         //console1.save();
 
         /*await Console.findOne({});
