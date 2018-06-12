@@ -7,6 +7,7 @@ const levelup = require('levelup');
 const leveldown = require('leveldown');
 const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector');
 const document = require('linvodb3/lib/document')
+const levelParty = require('./level-party');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
@@ -16,19 +17,38 @@ class TingoCollection extends MongooseCollection {
     }
 
     init() {
-        this.dataDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}`), {compression: false});
-        this.indexDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}_index`), {compression: false});
-        this.idx = [];
-        this.indexes = [];
-        this.indexDb.createReadStream()
-            .on('data', data => {
-                this.idx.push(document.deserialize(data.value));
-            })
-            .on('end', () => {
-                super.onOpen();
-                this.loaded = true;
-                this.queue2.forEach(fn => fn());
-            })
+        const afterInit = () => {
+            this.idx = [];
+            this.indexes = [];
+            this.indexDb.createReadStream()
+                .on('data', data => {
+                    this.idx.push(document.deserialize(data.value));
+                })
+                .on('end', () => {
+                    super.onOpen();
+                    this.loaded = true;
+                    this.queue2.forEach(fn => fn());
+                })
+        }
+
+        const _initData = () => {
+            this.dataDb = levelup(leveldown(`${this.conn.uri.split('//')[1]}/${this.name}`), {compression: false});
+            return this.dataDb;
+        }
+        const _initIndex = () => {
+            this.indexDb = levelup(leveldown(`${this.conn.uri.split('//')[1]}/${this.name}_index`), {compression: false});
+            afterInit();
+            return this.indexDb;
+        }
+
+        if (this.conn.uri.split('//')[0].includes('multi')) {
+            levelParty(_initIndex,`${this.conn.uri.split('//')[1]}/${this.name}_index`);
+            levelParty(_initData,`${this.conn.uri.split('//')[1]}/${this.name}`);
+        } else {
+            _initIndex();
+            _initData();
+        }
+
     }
 
     onOpen() {
@@ -137,11 +157,12 @@ class TingoCollection extends MongooseCollection {
                     let doc2 = _.assign(doc, update.$set);
                     batch.put(doc._id, document.serialize(doc2));
                     this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc2);
-                    batchIndex.put(doc._id, this.getIndex(doc2));
+                    batchIndex.put(doc._id, document.serialize(this.getIndex(doc2)));
                 }
-                batchIndex.write(() => null);
-                batch.write(() => {
-                    cb(null, {value: docs, ok: 1})
+                batchIndex.write(() => {
+                    batch.write(() => {
+                        cb(null, {value: docs, ok: 1})
+                    });
                 });
             });
         })
@@ -159,18 +180,18 @@ class TingoCollection extends MongooseCollection {
 
         if (keys.length > 0) {
             const batchIndex = this.indexDb.batch();
-            for (const key of keys) {
-                if (key) batchIndex.del(key);
-            }
-            batchIndex.write(() => null);
-
             const batch = this.dataDb.batch();
             for (const key of keys) {
+                if (key) batchIndex.del(key);
                 if (key) batch.del(key);
             }
-            batch.write(() => {
-                cb(null, keys.length);
+
+            batchIndex.write(() => {
+                batch.write(() => {
+                    cb(null, keys.length);
+                });
             });
+
         } else {
             cb(null, 0);
         }

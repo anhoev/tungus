@@ -35,11 +35,11 @@ TingoConnection.prototype._openWithoutPromise =
                 };
 
                 // TODO: Check if path valid on this file system
-                if (!uri.startsWith('mongodb://') && !uri.startsWith('tingodb://')) {
+                /*if (!uri.startsWith('mongodb://') && !uri.startsWith('tingodb://')) {
                     return handleFunc(`Uri "${uri}" is not valid!`);
-                }
+                }*/
 
-                let dbPath = uri.substr(10);
+                let dbPath = uri.split('//')[1];
                 mkdirp(dbPath, (err, made) => {
                     if (!err) {
                         this.db = {}

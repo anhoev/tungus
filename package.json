@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "level": "^4.0.0",
+    "level-party": "^3.0.4",
     "leveldown": "^4.0.1",
     "levelup": "^3.0.1",
     "linvodb3": "^3.25.1",
