@@ -7,7 +7,8 @@ const levelup = require('levelup');
 const leveldown = require('leveldown');
 const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector');
 const document = require('linvodb3/lib/document')
-const levelParty = require('./level-party');
+const multilevel = require('multilevel');
+const net = require('net');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
@@ -17,38 +18,45 @@ class TingoCollection extends MongooseCollection {
     }
 
     init() {
-        const afterInit = () => {
-            this.idx = [];
-            this.indexes = [];
-            this.indexDb.createReadStream()
-                .on('data', data => {
-                    this.idx.push(document.deserialize(data.value));
-                })
-                .on('end', () => {
-                    super.onOpen();
-                    this.loaded = true;
-                    this.queue2.forEach(fn => fn());
-                })
+        const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
+        const createSockPath = dir => {
+            return process.platform === 'win32' ?
+                '\\\\.\\pipe\\level-party\\' + path.resolve(dir) :
+                path.join(dir, 'level-party.sock');
         }
 
-        const _initData = () => {
-            this.dataDb = levelup(leveldown(`${this.conn.uri.split('//')[1]}/${this.name}`), {compression: false});
-            return this.dataDb;
-        }
-        const _initIndex = () => {
-            this.indexDb = levelup(leveldown(`${this.conn.uri.split('//')[1]}/${this.name}_index`), {compression: false});
-            afterInit();
-            return this.indexDb;
+        const _init = () => {
+            this.dataDb = levelup(leveldown(`${base}`), {compression: false});
+            this.indexDb = levelup(leveldown(`${base}_index`), {compression: false});
         }
 
-        if (this.conn.uri.split('//')[0].includes('multi')) {
-            levelParty(_initIndex,`${this.conn.uri.split('//')[1]}/${this.name}_index`);
-            levelParty(_initData,`${this.conn.uri.split('//')[1]}/${this.name}`);
+        if (this.conn.uri.split('//')[0].includes('server')) {
+            net.createServer(con => con.pipe(multilevel.server(this.indexDb)).pipe(con)).listen(createSockPath(base));
+            net.createServer(con => con.pipe(multilevel.server(this.dataDb)).pipe(con)).listen(createSockPath(`${base}_index`));
+            _init();
+        } else if (this.conn.uri.split('//')[0].includes('client')) {
+            this.indexDb = multilevel.client();
+            const con = net.connect(createSockPath(`${base}_index`));
+            con.pipe(db.createRpcStream()).pipe(con);
+
+            this.dataDb = multilevel.client();
+            const con2 = net.connect(createSockPath(base));
+            con2.pipe(db.createRpcStream()).pipe(con2);
         } else {
-            _initIndex();
-            _initData();
+            _init();
         }
 
+        this.idx = [];
+        this.indexes = [];
+        this.indexDb.createReadStream()
+            .on('data', data => {
+                this.idx.push(document.deserialize(data.value));
+            })
+            .on('end', () => {
+                super.onOpen();
+                this.loaded = true;
+                this.queue2.forEach(fn => fn());
+            })
     }
 
     onOpen() {

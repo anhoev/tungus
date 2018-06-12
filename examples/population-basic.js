@@ -1,13 +1,22 @@
-require('tungus');
+console.log('Running mongoose version %s');
+require('../index');
 const mongoose = require('mongoose');
+
 const Schema = mongoose.Schema;
 const _ = require('lodash');
 const autopopulate = require('mongoose-autopopulate');
 
-console.log('Running mongoose version %s', mongoose.version);
+mongoose.connect('tingodb_multi://test', {useMongoClient: false}, function (err) {
+    // if we failed to connect, abort
+    if (err) throw err;
+
+    // we connected ok
+})
+
 
 const consoleSchema = Schema({
-    name: String,
+    name: {type: String, index: true},
+    vid: {type: Number, index: true},
     manufacturer: String,
     released: Date
 });
@@ -20,28 +29,7 @@ const gameSchema = Schema({
     name: String,
     developer: String,
     released: Date,
-    test: {
-        type: [{
-            name: String,
-            color: {type: String, form: {type: 'color'}},
-            bigButton: Boolean,
-            bigButtonVertical: Boolean,
-            item: {
-                type: [{
-                    text: String,
-                    mode: {type: String, default: 'ARTIKEL'},
-                    console1: {
-                        type: mongoose.Schema.Types.ObjectId,
-                        ref: 'Console',
-                        autopopulate: true,
-                        label: 'Speise'
-                    },
-                    color: {type: String, form: {type: 'color'}}
-                }],
-            }
-        }]
-    },
-    console1: [{type: Schema.Types.ObjectId, ref: 'Console', autopopulate: true}]
+    console1: {type: Schema.Types.ObjectId, ref: 'Console', autopopulate: true}
 });
 
 gameSchema.plugin(autopopulate);
@@ -54,42 +42,56 @@ const Game = mongoose.model('Game', gameSchema);
  */
 
 mongoose.Promise = global.Promise;
-mongoose.connect('tingodb://test2', {useMongoClient: false}, function (err) {
-    // if we failed to connect, abort
-    if (err) throw err;
-
-    // we connected ok
-    example();
-})
 
 /**
  * Population
  */
 
+example();
+
 async function example() {
     try {
-        await Console.remove({});
-        const console = await Console.create({name: 'test'});
+        await Console.findOne();
+        //await Console.remove({});
+        const name = 'test';
+        await Console.create({name, manufacturer: name + '2', vid: 1});
+        console.time('findOne');
+        const console1 = await Console.findOne({});
+        console.timeEnd('findOne');
+        console1.vid = 10;
+        await Console.findByIdAndUpdate(console1._id, console1);
+        //console1.save();
+
+        /*await Console.findOne({});
+        for (let i = 0; i < 100; i++) {
+            const name = 'test';
+            await Console.create({name, manufacturer: name + '2', vid: i});
+        }*/
+
+        //await Console.count();
+
+        /*console.time('find');
+        const consoles = await Console.find({}).lean()
+        console.timeEnd('find');*/
+
+        /*const console1 = await Console.findOne({name: {$eq: 'test'}}).lean();
+
         await Game.remove({});
         await Game.create({
             name: 'Legend of Zelda: Ocarina of Time',
             developer: 'Nintendo',
             released: new Date('November 21, 1998'),
-            console1: [console._id, console._id],
-            test: [{
-                name : '1',
-                item: [{
-                    console1: console
-                }]
-            }]
+            console1,
         });
 
         //const count = await Game.count({});
 
         const game = await Game.findOne({});
-        await Game.findByIdAndUpdate(game._id, game.toObject());
+        game.name = 'HHH';
+        await game.save();
 
         const game1 = await Game.findOne({console: {$exists: false}});
+        console.log(game1.name);*/
         const a = 5;
     } catch (e) {
         console.warn(e);
