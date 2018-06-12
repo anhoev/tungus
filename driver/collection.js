@@ -10,6 +10,7 @@ const document = require('linvodb3/lib/document')
 const multilevel = require('multilevel');
 const net = require('net');
 const path = require('path');
+const fs = require('fs');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
