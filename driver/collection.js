@@ -136,7 +136,7 @@ class TingoCollection extends MongooseCollection {
                 for (const doc of docs) {
                     let doc2 = _.assign(doc, update.$set);
                     batch.put(doc._id, document.serialize(doc2));
-                    this.idx[this.idx.indexOf(doc._id)] = this.getIndex(doc2);
+                    this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc2);
                     batchIndex.put(doc._id, this.getIndex(doc2));
                 }
                 batchIndex.write(() => null);
