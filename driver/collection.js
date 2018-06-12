@@ -16,8 +16,8 @@ class TingoCollection extends MongooseCollection {
     }
 
     init() {
-        this.dataDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}`));
-        this.indexDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}_index`));
+        this.dataDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}`), {compression: false});
+        this.indexDb = levelup(leveldown(`${this.conn.uri.substr(10)}/${this.name}_index`), {compression: false});
         this.idx = [];
         this.indexes = [];
         this.indexDb.createReadStream()
@@ -56,8 +56,8 @@ class TingoCollection extends MongooseCollection {
     }
 
     createIndex(obj, options) {
-        const fieldName = _.map(obj, (v, k) => k)[0];
-        this.indexes.push(fieldName);
+        const fieldNames = _.map(obj, (v, k) => k);
+        this.indexes.push(...fieldNames);
     }
 
     findOne(query, opts, _cb) {
@@ -132,11 +132,14 @@ class TingoCollection extends MongooseCollection {
         this.find(query, opts, (err, _docs) => {
             _docs.toArray((err, docs) => {
                 const batch = this.dataDb.batch();
+                const batchIndex = this.indexDb.batch();
                 for (const doc of docs) {
                     let doc2 = _.assign(doc, update.$set);
                     batch.put(doc._id, document.serialize(doc2));
                     this.idx[this.idx.indexOf(doc._id)] = this.getIndex(doc2);
+                    batchIndex.put(doc._id, this.getIndex(doc2));
                 }
+                batchIndex.write(() => null);
                 batch.write(() => {
                     cb(null, {value: docs, ok: 1})
                 });
