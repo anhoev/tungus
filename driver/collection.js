@@ -9,7 +9,7 @@ const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector')
 const document = require('linvodb3/lib/document')
 const multilevel = require('multilevel');
 const net = require('net');
-const path = require('path');
+const Path = require('path');
 const fs = require('fs');
 
 class TingoCollection extends MongooseCollection {
@@ -20,11 +20,19 @@ class TingoCollection extends MongooseCollection {
     }
 
     init() {
+        this.port = 3001;
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
         const createSockPath = dir => {
-            return process.platform === 'win32' ?
-                '\\\\.\\pipe\\level-party\\' + path.resolve(dir) :
-                path.join(dir, 'level-party.sock');
+            const path = Path.join(dir, 'sock');
+            if (fs.existsSync(path)) fs.unlinkSync(path);
+            fs.writeFileSync(path, this.port, 'utf-8');
+            this.port ++;
+            return this.port;
+        }
+
+        const getSockPath = dir => {
+            const path = Path.join(dir, 'sock');
+            return fs.readFileSync(path, 'utf-8');
         }
 
         const _init = () => {
@@ -33,20 +41,17 @@ class TingoCollection extends MongooseCollection {
         }
 
         if (this.conn.uri.split('//')[0].includes('server')) {
-            if (fs.existsSync(createSockPath(base))) fs.unlinkSync(createSockPath(base))
-            if (fs.existsSync(createSockPath(`${base}_index`))) fs.unlinkSync(createSockPath(`${base}_index`))
-
             net.createServer(con => con.pipe(multilevel.server(this.indexDb)).pipe(con)).listen(createSockPath(base));
             net.createServer(con => con.pipe(multilevel.server(this.dataDb)).pipe(con)).listen(createSockPath(`${base}_index`));
             _init();
         } else if (this.conn.uri.split('//')[0].includes('client')) {
             this.indexDb = multilevel.client();
-            const con = net.connect(createSockPath(`${base}_index`));
-            con.pipe(db.createRpcStream()).pipe(con);
+            const con = net.connect(getSockPath(`${base}_index`));
+            con.pipe(this.indexDb.createRpcStream()).pipe(con);
 
             this.dataDb = multilevel.client();
-            const con2 = net.connect(createSockPath(base));
-            con2.pipe(db.createRpcStream()).pipe(con2);
+            const con2 = net.connect(getSockPath(base));
+            con2.pipe(this.dataDb.createRpcStream()).pipe(con2);
         } else {
             _init();
         }
