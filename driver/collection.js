@@ -32,6 +32,9 @@ class TingoCollection extends MongooseCollection {
         }
 
         if (this.conn.uri.split('//')[0].includes('server')) {
+            if (fs.existsSync(createSockPath(base))) fs.unlinkSync(createSockPath(base))
+            if (fs.existsSync(createSockPath(`${base}_index`))) fs.unlinkSync(createSockPath(`${base}_index`))
+
             net.createServer(con => con.pipe(multilevel.server(this.indexDb)).pipe(con)).listen(createSockPath(base));
             net.createServer(con => con.pipe(multilevel.server(this.dataDb)).pipe(con)).listen(createSockPath(`${base}_index`));
             _init();
