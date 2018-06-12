@@ -51,8 +51,8 @@ class TingoCollection extends MongooseCollection {
     }
 
     ensureIndex(obj, options, cb) {
-        const fieldName = _.map(obj, (v, k) => k)[0];
-        this.indexes.push(fieldName);
+        const fieldNames = _.map(obj, (v, k) => k);
+        this.indexes.push(...fieldNames);
     }
 
     createIndex(obj, options) {
