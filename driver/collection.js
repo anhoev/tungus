@@ -173,6 +173,13 @@ class TingoCollection extends MongooseCollection {
         }
     }
 
+    count(query, opts, cb) {
+        if (opts) delete opts.fields;
+        normalize(query);
+        let count = processFind(this.idx, query, opts).length;
+        cb(null, count);
+    }
+
     findAndModify(query, sort, update, opts = {}, cb) {
         normalize(update);
         if (update.$set._id) delete update.$set._id;
