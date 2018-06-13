@@ -174,19 +174,18 @@ class TingoCollection extends MongooseCollection {
 
         this.find(query, opts, (err, _docs) => {
             _docs.toArray((err, docs) => {
-                const batch = this.dataDb.batch();
-                const batchIndex = this.indexDb.batch();
+                const cmd = [];
                 for (const doc of docs) {
                     let doc2 = _.assign(doc, update.$set);
-                    batch.put(doc._id, document.serialize(doc2));
+                    cmd.push(q.ninvoke(this.dataDb, 'put', doc._id, document.serialize(doc2)));
                     this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc2);
-                    batchIndex.put(doc._id, document.serialize(this.getIndex(doc2)));
+                    cmd.push(q.ninvoke(this.indexDb, 'put', doc._id, document.serialize(this.getIndex(doc2))));
                 }
-                batchIndex.write(() => {
-                    batch.write(() => {
+                Promise.all(cmd)
+                    .then(docs => {
                         cb(null, {value: docs, ok: 1})
-                    });
-                });
+                    })
+                    .catch(err => cb(err))
             });
         })
     }
