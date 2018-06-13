@@ -52,8 +52,14 @@ class TingoCollection extends MongooseCollection {
             if (fs.existsSync(createSockPath(base))) fs.unlinkSync(createSockPath(base))
             if (fs.existsSync(createSockPath(`${base}_index`))) fs.unlinkSync(createSockPath(`${base}_index`))
 
-            net.createServer(con => con.pipe(multilevel.server(this.dataDb)).pipe(con)).listen(createSockPath(base));
-            net.createServer(con => con.pipe(multilevel.server(this.indexDb)).pipe(con)).listen(createSockPath(`${base}_index`));
+            net.createServer(con => {
+                con.pipe(multilevel.server(this.dataDb)).pipe(con);
+                con.on('error', console.log);
+            }).listen(createSockPath(base));
+            net.createServer(con => {
+                con.pipe(multilevel.server(this.indexDb)).pipe(con)
+                con.on('error', console.log);
+            }).listen(createSockPath(`${base}_index`));
             _init();
         } else if (this.conn.uri.split('//')[0].includes('client')) {
             this.indexDb = multilevel.client();
@@ -225,7 +231,7 @@ class TingoCollection extends MongooseCollection {
 function processFind(items, query, opts) {
     let filtered = sift(query, items);
     if (opts && opts.sort) filtered.sort(compileSort(opts.sort))
-    if (opts && opts.skip) filtered = _.slice(filtered, opts.skip)
+    if (opts && opts.skip) filtered = _.drop(filtered, opts.skip)
     if (opts && opts.limit) filtered = _.take(filtered, opts.limit)
     return filtered;
 }
