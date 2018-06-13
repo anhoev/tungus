@@ -11,6 +11,7 @@ const multilevel = require('multilevel');
 const net = require('net');
 const path = require('path');
 const fs = require('fs');
+const q = require('q');
 
 class TingoCollection extends MongooseCollection {
     constructor() {
@@ -51,8 +52,8 @@ class TingoCollection extends MongooseCollection {
             if (fs.existsSync(createSockPath(base))) fs.unlinkSync(createSockPath(base))
             if (fs.existsSync(createSockPath(`${base}_index`))) fs.unlinkSync(createSockPath(`${base}_index`))
 
-            net.createServer(con => con.pipe(multilevel.server(this.indexDb)).pipe(con)).listen(createSockPath(base));
-            net.createServer(con => con.pipe(multilevel.server(this.dataDb)).pipe(con)).listen(createSockPath(`${base}_index`));
+            net.createServer(con => con.pipe(multilevel.server(this.dataDb)).pipe(con)).listen(createSockPath(base));
+            net.createServer(con => con.pipe(multilevel.server(this.indexDb)).pipe(con)).listen(createSockPath(`${base}_index`));
             _init();
         } else if (this.conn.uri.split('//')[0].includes('client')) {
             this.indexDb = multilevel.client();
@@ -148,7 +149,7 @@ class TingoCollection extends MongooseCollection {
             }
 
             if (!_.isEmpty(keys)) {
-                Promise.all(keys.map(_id => this.dataDb.get(_id)))
+                Promise.all(keys.map(_id => q.ninvoke(this.dataDb, 'get', _id)))
                     .then(docs => {
                         docs = docs.map(doc => document.deserialize(doc));
                         cb(null, docs)
