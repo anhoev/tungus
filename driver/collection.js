@@ -85,7 +85,7 @@ class TingoCollection extends MongooseCollection {
     insert(doc, opt, cb) {
         normalize(doc);
         this.idx.push(doc);
-        this.indexDb.put(doc._id, document.serialize(this.getIndex(doc))).then();
+        this.indexDb.put(doc._id, document.serialize(this.getIndex(doc)), () => null);
         this.dataDb.put(doc._id, document.serialize(doc), cb);
     }
 
@@ -201,19 +201,16 @@ class TingoCollection extends MongooseCollection {
         _.remove(this.idx, i => keys.includes(i._id));
 
         if (keys.length > 0) {
-            const batchIndex = this.indexDb.batch();
-            const batch = this.dataDb.batch();
+            const cmd = [];
             for (const key of keys) {
-                if (key) batchIndex.del(key);
-                if (key) batch.del(key);
+                cmd.push(q.ninvoke(this.dataDb, 'del', key));
+                cmd.push(q.ninvoke(this.indexDb, 'del', key));
             }
-
-            batchIndex.write(() => {
-                batch.write(() => {
+            Promise.all(cmd)
+                .then(() => {
                     cb(null, keys.length);
-                });
-            });
-
+                })
+                .catch(err => cb(err))
         } else {
             cb(null, 0);
         }
