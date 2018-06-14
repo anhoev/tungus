@@ -14,10 +14,10 @@ const fs = require('fs');
 const q = require('q');
 
 let port = 3001;
+
 class TingoCollection extends MongooseCollection {
     constructor() {
         super(...arguments);
-        this.queue2 = [];
         if (this.conn.uri) this.init();
     }
 
@@ -30,7 +30,6 @@ class TingoCollection extends MongooseCollection {
             })
             .on('end', () => {
                 this.loaded = true;
-                this.queue2.forEach(fn => fn());
                 super.onOpen();
             })
     }
@@ -104,6 +103,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     insert(doc, opt, cb) {
+        if (!this.loaded) return this.queue.push(['insert', arguments]);
         normalize(doc);
         this.idx.push(doc);
         this.indexDb.put(doc._id, document.serialize(this.getIndex(doc)), () => null);
@@ -125,27 +125,22 @@ class TingoCollection extends MongooseCollection {
     }
 
     findOne(query, opts, _cb) {
-        const _findOne = () => {
-            if (opts) delete opts.fields;
-            normalize(query);
-            let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
-            if (key) {
-                this.dataDb.get(key, (err, doc) => {
-                    _cb(err, document.deserialize(doc));
-                });
-            } else {
-                _cb(null, null);
-            }
-        }
+        if (!this.loaded) return this.queue.push(['findOne', arguments]);
 
-        if (this.loaded) {
-            _findOne();
+        if (opts) delete opts.fields;
+        normalize(query);
+        let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
+        if (key) {
+            this.dataDb.get(key, (err, doc) => {
+                _cb(err, document.deserialize(doc));
+            });
         } else {
-            this.queue2.push(_findOne);
+            _cb(null, null);
         }
     }
 
     findAsync(query, opts) {
+        if (!this.loaded) return this.queue.push(['findAsync', arguments]);
         return new Promise((resolve, reject) => {
             this.find(query, opts, (err, cursor) => {
                 cursor.toArray((err, docs) => {
@@ -156,39 +151,33 @@ class TingoCollection extends MongooseCollection {
     }
 
     find(query, opts, _cb) {
-        const _find = () => {
-            if (opts) delete opts.fields;
-            normalize(query);
-            let keys = processFind(this.idx, query, opts).map(doc => doc._id);
-            //let docs = [];
-            const cb = function (err, docs) {
-                _cb(err, {
-                    toArray: cb2 => {
-                        cb2(null, docs);
-                    }
-                })
-            }
-
-            if (!_.isEmpty(keys)) {
-                Promise.all(keys.map(_id => q.ninvoke(this.dataDb, 'get', _id)))
-                    .then(docs => {
-                        docs = docs.map(doc => document.deserialize(doc));
-                        cb(null, docs)
-                    })
-                    .catch(err => cb(err))
-            } else {
-                cb(null, []);
-            }
+        if (!this.loaded) return this.queue.push(['find', arguments]);
+        if (opts) delete opts.fields;
+        normalize(query);
+        let keys = processFind(this.idx, query, opts).map(doc => doc._id);
+        //let docs = [];
+        const cb = function (err, docs) {
+            _cb(err, {
+                toArray: cb2 => {
+                    cb2(null, docs);
+                }
+            })
         }
 
-        if (this.loaded) {
-            _find();
+        if (!_.isEmpty(keys)) {
+            Promise.all(keys.map(_id => q.ninvoke(this.dataDb, 'get', _id)))
+                .then(docs => {
+                    docs = docs.map(doc => document.deserialize(doc));
+                    cb(null, docs)
+                })
+                .catch(err => cb(err))
         } else {
-            this.queue2.push(_find);
+            cb(null, []);
         }
     }
 
     count(query, opts, cb) {
+        if (!this.loaded) return this.queue.push(['count', arguments]);
         if (opts) delete opts.fields;
         normalize(query);
         let count = processFind(this.idx, query, opts).length;
@@ -196,6 +185,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     findAndModify(query, sort, update, opts = {}, cb) {
+        if (!this.loaded) return this.queue.push(['findAndModify', arguments]);
         normalize(update);
         if (update.$set._id) delete update.$set._id;
         if (update.$setOnInsert) delete update.$setOnInsert;
@@ -219,10 +209,12 @@ class TingoCollection extends MongooseCollection {
     }
 
     update(query, update, opts = {}, cb) {
+        if (!this.loaded) return this.queue.push(['update', arguments]);
         this.findAndModify(query, {}, update, null, cb);
     }
 
     remove(query, opts, cb) {
+        if (!this.loaded) return this.queue.push(['remove', arguments]);
         normalize(query);
         let keys = processFind(this.idx, query, opts).map(doc => doc._id);
 
@@ -250,7 +242,7 @@ class TingoCollection extends MongooseCollection {
 
 }
 
-function processFind(items, query, opts) {
+function processFind(items = [], query, opts) {
     let filtered = sift(query, items);
     if (opts && opts.sort) filtered.sort(compileSort(opts.sort))
     if (opts && opts.skip) filtered = _.drop(filtered, opts.skip)
