@@ -37,9 +37,10 @@ class TingoCollection extends MongooseCollection {
     init() {
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
         const createSockPath = dir => {
+            if (!fs.existsSync(path.join(dir, `../z_sock`))) fs.mkdirSync(path.join(dir, `../z_sock`));
             return process.platform === 'win32' ?
                 '\\\\.\\pipe\\level-party\\' + path.resolve(dir) :
-                path.join(dir, 'level-party.sock');
+                path.join(dir, `../z_sock/${this.name}.sock`);
         }
 
         const _init = () => {
