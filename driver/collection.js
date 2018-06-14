@@ -10,7 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const q = require('q');
 const level = require('level');
-
+const jsonfn = require('./jsonfn')
 let port = 3001;
 
 class TingoCollection extends MongooseCollection {
@@ -54,8 +54,14 @@ class TingoCollection extends MongooseCollection {
         }
 
         const _init = () => {
-            this.dataDb = level(`${base}`, {compression: false, valueEncoding: 'json'});
-            this.indexDb = level(`${base}_index`, {compression: false, valueEncoding: 'json'});
+            const valueEncoding = {
+                type: 'jsonfn',
+                encode: jsonfn.stringify,
+                decode: jsonfn.parse,
+                buffer: false
+            }
+            this.dataDb = level(`${base}`, {compression: false, valueEncoding});
+            this.indexDb = level(`${base}_index`, {compression: false, valueEncoding});
             this.afterInit();
         }
 
