@@ -43,8 +43,8 @@ class TingoCollection extends MongooseCollection {
         }
 
         const _init = () => {
-            this.dataDb = levelup(leveldown(`${base}`), {compression: false});
-            this.indexDb = levelup(leveldown(`${base}_index`), {compression: false});
+            this.dataDb = levelup(leveldown(`${base}`), {compression: true});
+            this.indexDb = levelup(leveldown(`${base}_index`), {compression: true});
             this.afterInit();
         }
 
