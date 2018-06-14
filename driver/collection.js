@@ -35,6 +35,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     init() {
+        this.initBegin = true;
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
         const makeSockPath = (isIndex = false) => {
             if (!fs.existsSync(path.join(base, `../../z_sock`))) fs.mkdirSync(path.join(base, `../../z_sock`));
@@ -95,7 +96,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     onOpen() {
-        if (!this.dataDb) this.init();
+        if (!this.initBegin) this.init();
     }
 
     getIndex(doc) {
