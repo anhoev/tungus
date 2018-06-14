@@ -13,6 +13,7 @@ const path = require('path');
 const fs = require('fs');
 const q = require('q');
 
+let port = 3001;
 class TingoCollection extends MongooseCollection {
     constructor() {
         super(...arguments);
@@ -36,11 +37,22 @@ class TingoCollection extends MongooseCollection {
 
     init() {
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
-        const createSockPath = (isIndex = false) => {
+        const makeSockPath = (isIndex = false) => {
             if (!fs.existsSync(path.join(base, `../../z_sock`))) fs.mkdirSync(path.join(base, `../../z_sock`));
             return process.platform === 'win32' ?
                 '\\\\.\\pipe\\level-party\\' + path.resolve(base) :
-                path.join(base, `../../z_sock/${this.name + (isIndex ? '_index' : '')}.sock`);
+                path.join(base, `../../z_sock/${this.name + (isIndex ? '_index' : '')}`);
+        }
+
+        const createSock = (isIndex = false) => {
+            const _path = makeSockPath(isIndex);
+            fs.writeFileSync(_path, port, 'utf-8');
+            return port;
+        }
+
+        const readSock = (isIndex = false) => {
+            const _path = makeSockPath(isIndex);
+            return fs.readFileSync(_path, 'utf-8');
         }
 
         const _init = () => {
@@ -50,26 +62,28 @@ class TingoCollection extends MongooseCollection {
         }
 
         if (this.conn.uri.split('//')[0].includes('server')) {
-            if (fs.existsSync(createSockPath(false))) fs.unlinkSync(createSockPath(false))
-            if (fs.existsSync(createSockPath(true))) fs.unlinkSync(createSockPath(true))
+            if (fs.existsSync(makeSockPath(false))) fs.unlinkSync(makeSockPath(false))
+            if (fs.existsSync(makeSockPath(true))) fs.unlinkSync(makeSockPath(true))
 
             net.createServer(con => {
                 con.pipe(multilevel.server(this.dataDb)).pipe(con);
                 con.on('error', console.log);
-            }).listen(createSockPath(false));
+            }).listen(createSock(false));
+            port++;
             net.createServer(con => {
                 con.pipe(multilevel.server(this.indexDb)).pipe(con)
                 con.on('error', console.log);
-            }).listen(createSockPath(true));
+            }).listen(createSock(true));
+            port++;
             _init();
         } else if (this.conn.uri.split('//')[0].includes('client')) {
             this.indexDb = multilevel.client();
-            const con = net.connect(createSockPath(true));
+            const con = net.connect(readSock(true));
             con.pipe(this.indexDb.createRpcStream()).pipe(con);
 
             con.on('connect', () => {
                 this.dataDb = multilevel.client();
-                const con2 = net.connect(createSockPath(false));
+                const con2 = net.connect(readSock(false));
                 con2.pipe(this.dataDb.createRpcStream()).pipe(con2);
 
                 con2.on('connect', () => {
