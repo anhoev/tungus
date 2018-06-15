@@ -33,6 +33,26 @@ class TingoCollection extends MongooseCollection {
             })
     }
 
+    rebuildIndex() {
+        return new Promise((resolve, reject) => {
+            const docs = [];
+            this.dataDb.createReadStream()
+                .on('data', data => {
+                    docs.push(jsonfn.parse(data.value));
+                })
+                .on('end', () => {
+                    Promise.all(this.idx.map(idx => q.ninvoke(this.indexDb, 'del', idx._id))).then(() => {
+                        this.idx = [];
+                        for (const doc of docs) {
+                            this.idx.push(this.getIndex(doc));
+                            this.indexDb.put(doc._id, jsonfn.stringify(this.getIndex(doc)), () => null);
+                        }
+                        resolve();
+                    })
+                })
+        })
+    }
+
     init() {
         this.initBegin = true;
         this.indexes = [];
@@ -106,7 +126,7 @@ class TingoCollection extends MongooseCollection {
     insert(doc, opt, cb) {
         if (!this.loaded) return this.queue.push(['insert', arguments]);
         normalize(doc);
-        this.idx.push(doc);
+        this.idx.push(this.getIndex(doc));
         this.indexDb.put(doc._id, jsonfn.stringify(this.getIndex(doc)), () => null);
         this.dataDb.put(doc._id, jsonfn.stringify(doc), cb);
     }
