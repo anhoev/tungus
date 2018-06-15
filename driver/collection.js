@@ -21,6 +21,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     afterInit() {
+        this.loaded = false;
         this.idx = [];
         this.indexes = [];
         this.indexDb.createReadStream()
