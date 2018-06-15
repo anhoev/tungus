@@ -23,7 +23,6 @@ class TingoCollection extends MongooseCollection {
     afterInit() {
         this.loaded = false;
         this.idx = [];
-        this.indexes = [];
         this.indexDb.createReadStream()
             .on('data', data => {
                 this.idx.push(jsonfn.parse(data.value));
@@ -36,6 +35,7 @@ class TingoCollection extends MongooseCollection {
 
     init() {
         this.initBegin = true;
+        this.indexes = [];
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
         const makeSockPath = (isIndex = false) => {
             if (!fs.existsSync(path.join(base, `../../z_sock`))) fs.mkdirSync(path.join(base, `../../z_sock`));
