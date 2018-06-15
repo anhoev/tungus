@@ -3,13 +3,14 @@ const _ = require('lodash');
 const ObjectId = require('bson').ObjectId;
 const sift = require('sift');
 
+const levelup = require('levelup');
+const leveldown = require('leveldown');
 const {compileSort, compileDocumentSelector} = require('minimongo/lib/selector');
 const multilevel = require('multilevel');
 const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const q = require('q');
-const level = require('level');
 const jsonfn = require('./jsonfn')
 let port = 3001;
 
@@ -24,7 +25,7 @@ class TingoCollection extends MongooseCollection {
         this.indexes = [];
         this.indexDb.createReadStream()
             .on('data', data => {
-                this.idx.push(data.value);
+                this.idx.push(jsonfn.parse(data.value));
             })
             .on('end', () => {
                 this.loaded = true;
@@ -54,14 +55,8 @@ class TingoCollection extends MongooseCollection {
         }
 
         const _init = () => {
-            const valueEncoding = {
-                type: 'jsonfn',
-                encode: jsonfn.stringify,
-                decode: jsonfn.parse,
-                buffer: false
-            }
-            this.dataDb = level(`${base}`, {compression: false, valueEncoding});
-            this.indexDb = level(`${base}_index`, {compression: false, valueEncoding});
+            this.dataDb = levelup(leveldown(`${base}`), {compression: false});
+            this.indexDb = levelup(leveldown(`${base}_index`), {compression: false});
             this.afterInit();
         }
 
@@ -111,8 +106,8 @@ class TingoCollection extends MongooseCollection {
         if (!this.loaded) return this.queue.push(['insert', arguments]);
         normalize(doc);
         this.idx.push(doc);
-        this.indexDb.put(doc._id, this.getIndex(doc), () => null);
-        this.dataDb.put(doc._id, doc, cb);
+        this.indexDb.put(doc._id, jsonfn.stringify(this.getIndex(doc)), () => null);
+        this.dataDb.put(doc._id, jsonfn.stringify(doc), cb);
     }
 
     drop(cb) {
@@ -137,7 +132,7 @@ class TingoCollection extends MongooseCollection {
         let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
         if (key) {
             this.dataDb.get(key, (err, doc) => {
-                _cb(err, doc);
+                _cb(err, jsonfn.parse(doc));
             });
         } else {
             _cb(null, null);
@@ -172,7 +167,7 @@ class TingoCollection extends MongooseCollection {
         if (!_.isEmpty(keys)) {
             Promise.all(keys.map(_id => q.ninvoke(this.dataDb, 'get', _id)))
                 .then(docs => {
-                    docs = docs.map(doc => doc);
+                    docs = docs.map(doc => jsonfn.parse(doc));
                     cb(null, docs)
                 })
                 .catch(err => cb(err))
@@ -192,8 +187,8 @@ class TingoCollection extends MongooseCollection {
     modifyById(doc) {
         normalize(doc);
         this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc);
-        q.ninvoke(this.dataDb, 'put', doc._id, doc).then();
-        q.ninvoke(this.indexDb, 'put', doc._id, this.getIndex(doc)).then();
+        q.ninvoke(this.dataDb, 'put', doc._id, jsonfn.stringify(doc)).then();
+        q.ninvoke(this.indexDb, 'put', doc._id, jsonfn.stringify(this.getIndex(doc))).then();
     }
 
     findAndModify(query, sort, update, opts = {}, cb) {
@@ -207,9 +202,9 @@ class TingoCollection extends MongooseCollection {
                 const cmd = [];
                 for (const doc of docs) {
                     let doc2 = _.assign(doc, update.$set);
-                    cmd.push(q.ninvoke(this.dataDb, 'put', doc._id, doc2));
+                    cmd.push(q.ninvoke(this.dataDb, 'put', doc._id, jsonfn.stringify(doc2)));
                     this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc2);
-                    cmd.push(q.ninvoke(this.indexDb, 'put', doc._id, this.getIndex(doc2)));
+                    cmd.push(q.ninvoke(this.indexDb, 'put', doc._id, jsonfn.stringify(this.getIndex(doc2))));
                 }
                 Promise.all(cmd)
                     .then(docs => {
