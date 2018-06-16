@@ -20,7 +20,7 @@ class TingoCollection extends MongooseCollection {
         if (this.conn.uri) this.init();
     }
 
-    afterInit() {
+    afterInit(cb) {
         this.loaded = false;
         this.idx = [];
         this.indexDb.createReadStream()
@@ -30,6 +30,7 @@ class TingoCollection extends MongooseCollection {
             .on('end', () => {
                 this.loaded = true;
                 super.onOpen();
+                if (cb) cb();
             })
     }
 
