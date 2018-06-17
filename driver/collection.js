@@ -222,6 +222,7 @@ class TingoCollection extends MongooseCollection {
         this.find(query, opts, (err, _docs) => {
             _docs.toArray((err, docs) => {
                 const cmd = [];
+                if (docs.length === 0) return this.insert(update.$set, {}, cb);
                 for (const doc of docs) {
                     let doc2 = _.assign(doc, update.$set);
                     cmd.push(q.ninvoke(this.dataDb, 'put', doc._id, jsonfn.stringify(doc2)));
