@@ -60,9 +60,7 @@ class TingoCollection extends MongooseCollection {
         const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
         const makeSockPath = (isIndex = false) => {
             if (!fs.existsSync(path.join(base, `../../z_sock`))) fs.mkdirSync(path.join(base, `../../z_sock`));
-            return process.platform === 'win32' ?
-                '\\\\.\\pipe\\level-party\\' + path.resolve(base) :
-                path.join(base, `../../z_sock/${this.name + (isIndex ? '_index' : '')}`);
+            return path.join(base, `../../z_sock/${this.name + (isIndex ? '_index' : '')}`);
         }
 
         const createSock = (isIndex = false) => {
@@ -128,8 +126,7 @@ class TingoCollection extends MongooseCollection {
         if (!this.loaded) return this.queue.push(['insert', arguments]);
         normalize(doc);
         this.idx.push(this.getIndex(doc));
-        this.indexDb.put(doc._id, jsonfn.stringify(this.getIndex(doc)), () => null);
-        this.dataDb.put(doc._id, jsonfn.stringify(doc), cb);
+        this.indexDb.put(doc._id, jsonfn.stringify(this.getIndex(doc)), () => this.dataDb.put(doc._id, jsonfn.stringify(doc), cb));
     }
 
     drop(cb) {
