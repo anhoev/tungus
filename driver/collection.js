@@ -21,7 +21,7 @@ class TingoCollection extends MongooseCollection {
     }
 
     afterInit(cb) {
-        if (this.loading) return;
+        if (this.loading) return this.queue.push(['afterInit', arguments]);
         this.loading = true;
         this.loaded = false;
         this.idx = [];
