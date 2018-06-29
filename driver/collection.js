@@ -21,6 +21,8 @@ class TingoCollection extends MongooseCollection {
     }
 
     afterInit(cb) {
+        if (!this.loading) return;
+        this.loading = true;
         this.loaded = false;
         this.idx = [];
         this.indexDb.createReadStream()
@@ -28,6 +30,7 @@ class TingoCollection extends MongooseCollection {
                 this.idx.push(jsonfn.parse(data.value));
             })
             .on('end', () => {
+                this.loading = false;
                 this.loaded = true;
                 super.onOpen();
                 if (cb) cb();
