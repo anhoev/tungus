@@ -216,7 +216,8 @@ class TingoCollection extends MongooseCollection {
     findAndModify(query, sort, update, opts = {}, cb) {
         if (!this.loaded) return this.queue.push(['findAndModify', arguments]);
         normalize(update);
-        if (update.$setOnInsert) delete update.$setOnInsert;
+        if (update && update.$setOnInsert) delete update.$setOnInsert;
+        if (opts && opts.remove) return this.remove(query, opts, cb);
 
         this.find(query, opts, (err, _docs) => {
             _docs.toArray((err, docs) => {
