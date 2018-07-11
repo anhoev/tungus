@@ -259,7 +259,7 @@ class TingoCollection extends MongooseCollection {
             }
             Promise.all(cmd)
                 .then(() => {
-                    cb(null, keys.length);
+                    cb(null, {value: keys.length, ok: 1});
                 })
                 .catch(err => cb(err))
         } else {
