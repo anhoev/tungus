@@ -78,6 +78,18 @@ class TingoCollection extends MongooseCollection {
         }
 
         const _init = () => {
+            const lockPathData = path.join(base, 'LOCK');
+            try {
+                if (fs.existsSync(lockPathData)) fs.unlinkSync(lockPathData);
+            } catch (e) {
+            }
+
+            const lockPathIndex = path.join(`${base}_index`, 'LOCK');
+            try {
+                if (fs.existsSync(lockPathIndex)) fs.unlinkSync(lockPathIndex);
+            } catch (e) {
+            }
+
             this.dataDb = levelup(leveldown(`${base}`), {compression: false});
             this.indexDb = levelup(leveldown(`${base}_index`), {compression: false});
             this.afterInit();
