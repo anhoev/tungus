@@ -6,7 +6,7 @@ const Schema = mongoose.Schema;
 const _ = require('lodash');
 const autopopulate = require('mongoose-autopopulate');
 
-mongoose.connect('tingodb_server://test', {useMongoClient: false}, function (err) {
+mongoose.connect('tingodb://test', {useMongoClient: false}, function (err) {
     // if we failed to connect, abort
     if (err) throw err;
 
@@ -51,15 +51,18 @@ example();
 
 async function example() {
     try {
-        await Console.findOne();
+        let consoles = await Console.find({});
+        console.log(consoles);
         //await Console.remove({});
         const name = 'test';
-        await Console.create({name, manufacturer: name + '2', vid: 1});
+        await Console.create({name, manufacturer: name + '2', vid: 1, released: new Date()});
+        await Console.create({name, manufacturer: name + '3', vid: 1, released: new Date()});
+        Console.collection.rebuildIndex();
         console.time('findOne');
         const console1 = await Console.findOne({});
         console.timeEnd('findOne');
-        console1.vid = 10;
-        await Console.findByIdAndUpdate(console1._id, console1);
+        console1.vid = 20;
+        await Console.collection.modifyById(console1);
         //console1.save();
 
         /*await Console.findOne({});
@@ -93,6 +96,7 @@ async function example() {
         const game1 = await Game.findOne({console: {$exists: false}});
         console.log(game1.name);*/
         const a = 5;
+        await mongoose.disconnect();
     } catch (e) {
         console.warn(e);
     }
