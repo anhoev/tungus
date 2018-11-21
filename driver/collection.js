@@ -167,7 +167,7 @@ class TingoCollection extends MongooseCollection {
 
       if (opts) delete opts.fields;
       normalize(query);
-      let [key] = processFind(this.idx, query, opts).map(doc => doc._id);
+      let [key] = processFind(this.idx, query, opts);
       if (key) {
          this.dataDb.get(key, (err, doc) => {
             _cb(err, jsonfn.parse(doc));
@@ -192,7 +192,8 @@ class TingoCollection extends MongooseCollection {
       if (!this.loaded) return this.queue.push(['find', arguments]);
       if (opts) delete opts.fields;
       normalize(query);
-      let keys = processFind(this.idx, query, opts).map(doc => doc._id);
+      let keys = processFind(this.idx, query, opts);
+
       //let docs = [];
       const cb = function (err, docs) {
          _cb(err, {
@@ -243,7 +244,7 @@ class TingoCollection extends MongooseCollection {
             for (const doc of docs) {
                let doc2 = _.assign(doc, update.$set);
                cmd.push(q.ninvoke(this.dataDb, 'put', doc._id, jsonfn.stringify(doc2)));
-               this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc2);
+               this.idx[_.findIndex(this.idx, id => id._id === doc._id)] = this.getIndex(doc2);
                cmd.push(q.ninvoke(this.indexDb, 'put', doc._id, jsonfn.stringify(this.getIndex(doc2))));
             }
             Promise.all(cmd)
@@ -297,11 +298,13 @@ class TingoCollection extends MongooseCollection {
 }
 
 function processFind(items = [], query, opts) {
+   if (query && query._id && query._id.$in) return query._id.$in.filter(_id => !!_id);
+
    let filtered = sift(query, items);
    if (opts && opts.sort) filtered.sort(compileSort(opts.sort))
    if (opts && opts.skip) filtered = _.drop(filtered, opts.skip)
    if (opts && opts.limit) filtered = _.take(filtered, opts.limit)
-   return filtered;
+   return filtered.map(i => i._id);
 }
 
 const normalize = function (obj) {
