@@ -225,7 +225,7 @@ class TingoCollection extends MongooseCollection {
 
    modifyById(doc) {
       normalize(doc);
-      this.idx[_.findKey(this.idx, id => id._id === doc._id)] = this.getIndex(doc);
+      this.idx[_.findIndex(this.idx, id => id._id === doc._id)] = this.getIndex(doc);
       q.ninvoke(this.dataDb, 'put', doc._id, jsonfn.stringify(doc)).then();
       q.ninvoke(this.indexDb, 'put', doc._id, jsonfn.stringify(this.getIndex(doc))).then();
    }
