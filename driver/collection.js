@@ -264,7 +264,7 @@ class TingoCollection extends MongooseCollection {
    remove(query, opts, cb) {
       if (!this.loaded) return this.queue.push(['remove', arguments]);
       normalize(query);
-      let keys = processFind(this.idx, query, opts).map(doc => doc._id);
+      let keys = processFind(this.idx, query, opts);
 
       _.remove(this.idx, i => keys.includes(i._id));
 
