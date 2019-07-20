@@ -39,7 +39,7 @@
   "dependencies": {
     "level": "~4.0.0",
     "level-party": "~3.0.4",
-    "leveldown": "~4.0.1",
+    "leveldown": "github:anhoev/leveldown",
     "levelup": "~3.0.1",
     "linvodb3": "~3.25.1",
     "lodash": "~4.17.x",
@@ -49,8 +49,7 @@
     "multilevel": "~7.2.3",
     "q": "^1.5.1",
     "safe": "~0.4.6",
-    "sift": "~5.1.0",
-    "tingodb": "github:anhoev/tingodb#reload_feature"
+    "sift": "~5.1.0"
   },
   "scripts": {
     "test": "mocha ./test/*.test.js"
