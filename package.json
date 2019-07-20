@@ -49,7 +49,8 @@
     "multilevel": "~7.2.3",
     "q": "^1.5.1",
     "safe": "~0.4.6",
-    "sift": "~5.1.0"
+    "sift": "~5.1.0",
+    "tingodb": "^0.6.1"
   },
   "scripts": {
     "test": "mocha ./test/*.test.js"
