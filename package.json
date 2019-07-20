@@ -39,7 +39,6 @@
   "dependencies": {
     "level": "~4.0.0",
     "level-party": "~3.0.4",
-    "leveldown": "github:anhoev/leveldown",
     "levelup": "~3.0.1",
     "linvodb3": "~3.25.1",
     "lodash": "~4.17.x",
@@ -58,6 +57,7 @@
   "devDependencies": {
     "mocha": "^5.0.4",
     "mongoose": "^5.0.10",
-    "mongoose-autopopulate": "^0.7.0"
+    "mongoose-autopopulate": "^0.7.0",
+    "leveldown": "github:anhoev/leveldown"
   }
 }
