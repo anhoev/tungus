@@ -1,7 +1,7 @@
 const MongooseCollection = require('mongoose/lib/collection');
 const _ = require('lodash');
 const ObjectId = require('bson').ObjectId;
-const sift = require('sift');
+const sift = require('sift').default;
 
 const levelup = require('levelup');
 const leveldown = require('leveldown');
@@ -310,7 +310,7 @@ function processFind(items = [], query, opts) {
       return query._id.$in.filter(_id => (!!_id && _.find(items, i => i._id === _id)));
    }
 
-   let filtered = sift(query, items);
+   let filtered = items.filter(sift(query));
    if (opts && opts.sort) filtered.sort(compileSort(opts.sort))
    if (opts && opts.skip) filtered = _.drop(filtered, opts.skip)
    if (opts && opts.limit) filtered = _.take(filtered, opts.limit)

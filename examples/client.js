@@ -6,7 +6,7 @@ const Schema = mongoose.Schema;
 const _ = require('lodash');
 const autopopulate = require('mongoose-autopopulate');
 
-mongoose.connect('tingodb_client://test', {useMongoClient: false}, function (err) {
+mongoose.connect('tingodb://test', {useMongoClient: false}, function (err) {
     // if we failed to connect, abort
     if (err) throw err;
 
