@@ -309,6 +309,10 @@ function processFind(items = [], query, opts) {
    if (query && query._id && query._id.$in) {
       return query._id.$in.filter(_id => (!!_id && _.find(items, i => i._id === _id)));
    }
+   
+   if (query && query._id && typeof query._id === 'string') {
+      return _.filter(items, i => i._id === query._id).map(i => i._id);
+   }
 
    let filtered = sift(query, items);
    if (opts && opts.sort) filtered.sort(compileSort(opts.sort))
