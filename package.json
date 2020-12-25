@@ -37,13 +37,13 @@
     "node": ">= v0.8.x"
   },
   "dependencies": {
-    "level": "^6.0.1",
-    "level-party": "^4.0.0",
-    "levelup": "^4.4.0",
+    "level": "~4.0.0",
+    "level-party": "~3.0.4",
+    "levelup": "~3.0.1",
     "lodash": "~4.17.x",
     "minimongo": "~5.0.1",
     "mkdirp": "~0.5.x",
-    "multilevel": "^7.2.3",
+    "multilevel": "~7.2.3",
     "q": "^1.5.1",
     "safe": "~0.4.6",
     "sift": "~5.1.0",
