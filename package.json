@@ -40,11 +40,9 @@
     "level": "~4.0.0",
     "level-party": "~3.0.4",
     "levelup": "~3.0.1",
-    "linvodb3": "~3.25.1",
     "lodash": "~4.17.x",
     "minimongo": "~5.0.1",
     "mkdirp": "~0.5.x",
-    "mongodb": "~3.0.10",
     "multilevel": "~7.2.3",
     "q": "^1.5.1",
     "safe": "~0.4.6",
@@ -55,6 +53,8 @@
     "test": "mocha ./test/*.test.js"
   },
   "devDependencies": {
+    "linvodb3": "~3.25.1",
+    "mongodb": "~3.0.10",
     "mocha": "^5.0.4",
     "mongoose": "^5.0.10",
     "mongoose-autopopulate": "^0.7.0",
