@@ -61,6 +61,7 @@ class TingoCollection extends MongooseCollection {
    }
 
    init() {
+      if (this.initBegin) return;
       this.initBegin = true;
       this.indexes = [];
       const base = `${this.conn.uri.split('//')[1]}/${this.name}`;
